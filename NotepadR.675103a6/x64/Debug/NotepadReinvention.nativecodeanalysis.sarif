@@ -26,7 +26,7 @@
             "analysisTarget"
           ],
           "hashes": {
-            "sha-256": "3f5c7b4877e515f1960d1faf73cc01ccb90032b9f2fff5dc143c90fd48d21ed5"
+            "sha-256": "1fa693591d1319d0979d20dd5e3c328aa911008f5dd5c1538f0afbf2bd453180"
           }
         },
         {
@@ -42,7 +42,15 @@
             "uri": "file:///p:/notepadreinvention/resource.h"
           },
           "hashes": {
-            "sha-256": "9a86ed4d86e07ce67593050d6297a11ac1fd93d5f3b7be0f0fa0faf9ca1547ba"
+            "sha-256": "28572fba816357cdf154173fbcd9fa56dac90e15c3ffceb1c954a0dbbf280aef"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///p:/notepadreinvention/textmanager.h"
+          },
+          "hashes": {
+            "sha-256": "302006521bbb1cfbbad8d21b446abc947616c269805c2abb41b12d4af0b70990"
           }
         },
         {
@@ -50,7 +58,7 @@
             "uri": "file:///p:/notepadreinvention/framework.h"
           },
           "hashes": {
-            "sha-256": "e29199327b6bc35fb9661e5d62697f4c19a9bd9d81e91addee9f25649e249beb"
+            "sha-256": "5dc4907c29ba07d2587bb604ddf348e0ed49a92b7ad4545580cb06c9ead60313"
           }
         },
         {
@@ -59,14 +67,6 @@
           },
           "hashes": {
             "sha-256": "98488711a351764d005e8c3d3fd40aaed28396870a660c28abd81ac2a53d4b90"
-          }
-        },
-        {
-          "location": {
-            "uri": "file:///p:/notepadreinvention/textmanager.h"
-          },
-          "hashes": {
-            "sha-256": "61df659813fb92d27c1edf638cc5504603200ee784f39ffd9b1ced5b28d6551f"
           }
         }
       ]

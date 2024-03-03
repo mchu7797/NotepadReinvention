@@ -8,7 +8,10 @@
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 // Windows Header Files
 #include <windows.h>
+#include <commdlg.h>
+#include <fileapi.h>
 // CPP RunTime Header Files
+#include <fstream>
 #include <string>
 #include <sstream>
 #include <vector>

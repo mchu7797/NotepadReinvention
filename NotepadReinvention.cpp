@@ -15,6 +15,8 @@ WCHAR szTitle[MAX_LOADSTRING];
 WCHAR szWindowClass[MAX_LOADSTRING];
 HFONT defaultFont;
 
+HWND mainWindow;
+
 TextManager TextBoard;
 
 long TextPosX = 0;
@@ -33,6 +35,8 @@ LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 
 void GetFontSize(HWND hWnd, WCHAR character, int *height, int *width);
+BOOL TryOpen();
+BOOL TrySave();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                       _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine,
@@ -86,16 +90,16 @@ ATOM MyRegisterClass(HINSTANCE hInstance) {
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
   hInst = hInstance;
 
-  HWND hWnd = CreateWindowW(
+  mainWindow = CreateWindowW(
       szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_HSCROLL | WS_VSCROLL,
       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
-  if (!hWnd) {
+  if (!mainWindow) {
     return FALSE;
   }
 
-  ShowWindow(hWnd, nCmdShow);
-  UpdateWindow(hWnd);
+  ShowWindow(mainWindow, nCmdShow);
+  UpdateWindow(mainWindow);
 
   return TRUE;
 }
@@ -119,12 +123,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     case IDM_EXIT:
       DestroyWindow(hWnd);
       break;
+    case IDM_FILE_OPEN:
+      TextBoard.clear();
+      
+      if (!TryOpen()) {
+        MessageBox(mainWindow, L"파일을 열 수 없습니다!", L"오류", MB_OK);
+      }
+
+      InvalidateRect(hWnd, NULL, true);
+      break;
+    case IDM_FILE_SAVE:
+      if (!TrySave()) {
+        MessageBox(mainWindow, L"파일을 저장할 수 없습니다!", L"오류", MB_OK);
+      }
+      break;
     default:
       return DefWindowProc(hWnd, message, wParam, lParam);
     }
   } break;
-  case WM_CHAR:
-    break;
   case WM_KEYDOWN:
     switch (wParam) {
     case VK_UP:
@@ -139,7 +155,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         }
       }
 
-      InvalidateRect(hWnd, nullptr, false);
+      InvalidateRect(hWnd, nullptr, true);
       break;
     case VK_DOWN:
       if (CaretPosYByChar < TextBoard.size() - 1) {
@@ -153,14 +169,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         }
       }
 
-      InvalidateRect(hWnd, nullptr, false);
+      InvalidateRect(hWnd, nullptr, true);
       break;
     case VK_LEFT:
       if (CaretPosXByChar > 0) {
         --CaretPosXByChar;
       }
 
-      InvalidateRect(hWnd, nullptr, false);
+      InvalidateRect(hWnd, nullptr, true);
       break;
     case VK_RIGHT:
       if (TextBoard.getText(CaretPosYByChar).has_value()) {
@@ -170,7 +186,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         }
       }
 
-      InvalidateRect(hWnd, nullptr, false);
+      InvalidateRect(hWnd, nullptr, true);
       break;
     case VK_BACK:
       TextBoard.handleHitBackspace(CaretPosXByChar, CaretPosYByChar);
@@ -193,7 +209,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       break;
     case VK_TAB:
       TextBoard.handleHitTab(CaretPosXByChar, CaretPosYByChar);
-      
+
       CaretPosXByChar += 8;
 
       InvalidateRect(hWnd, NULL, true);
@@ -209,13 +225,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       break;
     case VK_HOME:
       CaretPosXByChar = 0;
-      InvalidateRect(hWnd, NULL, false);
+      InvalidateRect(hWnd, NULL, true);
       break;
     case VK_END:
       if (TextBoard.getText(CaretPosYByChar).has_value()) {
         CaretPosXByChar = TextBoard.getText(CaretPosYByChar).value().length();
       }
-      InvalidateRect(hWnd, NULL, false);
+      InvalidateRect(hWnd, NULL, true);
       break;
     case VK_DELETE:
       TextBoard.handleHitDelete(CaretPosXByChar, CaretPosYByChar);
@@ -226,7 +242,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       BYTE KeyState[256] = {0};
       WCHAR CharacterToType[2];
       if (ToUnicode(wParam, 0, KeyState, CharacterToType, 2, 0)) {
-        TextBoard.handleWrite(CharacterToType, CaretPosXByChar, CaretPosYByChar);
+        TextBoard.handleWrite(CharacterToType, CaretPosXByChar,
+                              CaretPosYByChar);
         ++CaretPosXByChar;
         InvalidateRect(hWnd, NULL, true);
       }
@@ -318,4 +335,70 @@ void GetFontSize(HWND hWnd, WCHAR character, int *height, int *width) {
 
   *height = TextMetric.tmHeight;
   *width = Abc.abcA + Abc.abcB + Abc.abcC;
+}
+
+BOOL TryOpen() {
+  OPENFILENAME openFileName;
+  TCHAR lpstrFile[256] = L"";
+
+  memset(&openFileName, 0, sizeof(OPENFILENAME));
+  openFileName.lStructSize = sizeof(OPENFILENAME);
+  openFileName.hwndOwner = mainWindow;
+  openFileName.lpstrFile = lpstrFile;
+  openFileName.nMaxFile = 256;
+  openFileName.lpstrInitialDir = L".";
+  openFileName.lpstrDefExt = L"txt";
+  openFileName.lpstrFilter = L"텍스트 파일\0*.txt\0모든 파일\0*.*";
+
+  if (GetOpenFileName(&openFileName) == 0) {
+    return false;
+  }
+
+  std::wifstream ReadStream(lpstrFile);
+
+  if (!ReadStream.is_open()) {
+    ReadStream.close();
+    return false;
+  }
+
+  std::wstring Line;
+
+  while (getline(ReadStream, Line)) {
+    TextBoard.appendString(Line);
+  }
+
+  return true;
+}
+
+BOOL TrySave() {
+  OPENFILENAME saveFileName;
+  TCHAR lpstrFile[256] = L"";
+
+  memset(&saveFileName, 0, sizeof(OPENFILENAME));
+  saveFileName.lStructSize = sizeof(OPENFILENAME);
+  saveFileName.hwndOwner = mainWindow;
+  saveFileName.lpstrFile = lpstrFile;
+  saveFileName.nMaxFile = 256;
+  saveFileName.lpstrInitialDir = L".";
+  saveFileName.lpstrDefExt = L"txt";
+  saveFileName.lpstrFilter = L"텍스트 파일\0*.txt\0모든 파일\0*.*";
+
+  if (GetSaveFileName(&saveFileName) == 0) {
+    return false;
+  }
+
+  std::wofstream WriteStream(lpstrFile);
+
+  if (!WriteStream.is_open()) {
+    WriteStream.close();
+    return false;
+  }
+
+  for (auto it = TextBoard.begin(); it < TextBoard.end(); ++it) {
+    WriteStream << *it;
+  }
+
+  WriteStream.close();
+
+  return true;
 }

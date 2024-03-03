@@ -4,7 +4,7 @@
 #include "framework.h"
 
 class TextManager {
- public:
+public:
   TextManager();
 
   std::optional<std::wstring> getText(int Row);
@@ -15,13 +15,17 @@ class TextManager {
   std::vector<std::wstring>::iterator end() { return TextBoard.end(); }
   size_t size() { return TextBoard.size(); }
 
+  void appendString(std::wstring string) { TextBoard.push_back(string); }
+  void clear() { TextBoard.clear(); }
+
   void handleWrite(wchar_t *Character, int X, int Y);
   void handleHitEnter(int X, int Y);
   void handleHitBackspace(int X, int Y);
   void handleHitTab(int X, int Y);
   void handleHitInsert();
   void handleHitDelete(int X, int Y);
- private:
+
+private:
   bool IsOverrideMode;
   std::vector<std::wstring> TextBoard;
 };

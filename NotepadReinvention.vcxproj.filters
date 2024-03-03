@@ -27,6 +27,9 @@
     <ClInclude Include="TextManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NotepadReinvention.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NotepadReinvention.cpp">
