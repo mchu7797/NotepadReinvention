@@ -7,24 +7,27 @@
 TextManager::TextManager() {
   TextBoard = std::vector<std::wstring>();
 
-  TextBoard.push_back(std::wstring());
+  TextBoard.push_back(L"Hello, World!");
+  TextBoard.push_back(L"한글한글한글");
 
   IsOverrideMode = false;
 }
 
 size_t TextManager::getMaxHeight() { return TextBoard.size(); }
 
-size_t TextManager::getMaxWidth() {
+std::wstring TextManager::getLongestLine() {
   size_t MaxWidth = 0;
+  std::vector<std::wstring>::iterator LongestLine = TextBoard.begin();
 
   for (std::vector<std::wstring>::iterator iter = TextBoard.begin();
        iter != TextBoard.end(); ++iter) {
     if (MaxWidth < iter->length()) {
       MaxWidth = iter->length();
+      LongestLine = iter;
     }
   }
-
-  return MaxWidth;
+  
+  return *LongestLine;
 }
 
 std::optional<std::wstring> TextManager::getText(int Row) {
@@ -35,9 +38,7 @@ std::optional<std::wstring> TextManager::getText(int Row) {
   return TextBoard[Row];
 }
 
-void TextManager::handleWrite(wchar_t *Character, int X, int Y) {
-  std::wstring StringToType(Character);
-
+void TextManager::handleWrite(wchar_t Character, int X, int Y) {
   if (Y < 0 || Y > TextBoard.size()) {
     return;
   }
@@ -47,10 +48,14 @@ void TextManager::handleWrite(wchar_t *Character, int X, int Y) {
   }
 
   if (X > TextBoard[Y].length()) {
-    TextBoard[X].append(Character);
+    TextBoard[X].push_back(Character);
   }
 
-  TextBoard[Y].insert(X, StringToType);
+  if (IsOverrideMode) {
+    TextBoard[Y].erase(X, 1);
+  }
+
+  TextBoard[Y].insert(TextBoard[Y].begin() + X, Character);
 }
 
 void TextManager::handleHitEnter(int X, int Y) {
@@ -144,4 +149,8 @@ void TextManager::handleHitDelete(int X, int Y) {
   }
 
   TextBoard[Y].erase(X, 1);
+}
+
+void TextManager::clear() {
+  TextBoard.clear();
 }

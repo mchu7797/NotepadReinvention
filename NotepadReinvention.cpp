@@ -34,7 +34,8 @@ BOOL InitInstance(HINSTANCE, int);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 
-void GetFontSize(HWND hWnd, WCHAR character, int *height, int *width);
+void GetFontSize(HWND hWnd, HDC deviceContext, WCHAR character, int *height, int *width);
+void UpdateScrollRange(HWND hWnd, HDC deviceContext);
 BOOL TryOpen();
 BOOL TrySave();
 
@@ -113,6 +114,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     SendMessage(hWnd, WM_SETFONT, (WPARAM)defaultFont, TRUE);
     TextBoard = TextManager();
     break;
+  case WM_HSCROLL:
+    if (LOWORD(wParam) == SB_THUMBTRACK) {
+      TextPosX = -HIWORD(wParam);
+      SetScrollPos(hWnd, SB_HORZ, HIWORD(wParam), TRUE);
+      InvalidateRect(hWnd, NULL, true);
+    }
+    break;
+  case WM_VSCROLL:
+    if (LOWORD(wParam) == SB_THUMBTRACK) {
+      TextPosY = -HIWORD(wParam);
+      SetScrollPos(hWnd, SB_VERT, HIWORD(wParam), TRUE);
+      InvalidateRect(hWnd, NULL, true);
+    }
+    break;
   case WM_COMMAND: {
     int wmId = LOWORD(wParam);
     // Parse the menu selections:
@@ -125,7 +140,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       break;
     case IDM_FILE_OPEN:
       TextBoard.clear();
-      
+
       if (!TryOpen()) {
         MessageBox(mainWindow, L"파일을 열 수 없습니다!", L"오류", MB_OK);
       }
@@ -141,6 +156,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       return DefWindowProc(hWnd, message, wParam, lParam);
     }
   } break;
+  case WM_CHAR:
+    if (wParam < 32 || wParam == 127) {
+      break;
+    }
+
+    TextBoard.handleWrite((wchar_t)wParam, CaretPosXByChar, CaretPosYByChar);
+    ++CaretPosXByChar;
+    InvalidateRect(hWnd, NULL, true);
+    break;
   case WM_KEYDOWN:
     switch (wParam) {
     case VK_UP:
@@ -202,6 +226,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
           CaretPosXByChar = 0;
         }
       } else {
+        // Do nothing
       }
 
       InvalidateRect(hWnd, NULL, true);
@@ -238,23 +263,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
 
       InvalidateRect(hWnd, NULL, true);
       break;
+    case VK_INSERT:
+      TextBoard.handleHitInsert();
+      break;
     default:
-      BYTE KeyState[256] = {0};
-      WCHAR CharacterToType[2];
-      if (ToUnicode(wParam, 0, KeyState, CharacterToType, 2, 0)) {
-        TextBoard.handleWrite(CharacterToType, CaretPosXByChar,
-                              CaretPosYByChar);
-        ++CaretPosXByChar;
-        InvalidateRect(hWnd, NULL, true);
-      }
+      break;
     }
     break;
   case WM_PAINT: {
     PAINTSTRUCT ps;
     TEXTMETRICW TextMetric;
-    HDC hdc = BeginPaint(hWnd, &ps);
+    HDC deviceContext = BeginPaint(hWnd, &ps);
 
-    GetTextMetrics(hdc, &TextMetric);
+    GetTextMetrics(deviceContext, &TextMetric);
 
     // 글자 그리기
     for (int i = 0; i < TextBoard.size(); ++i) {
@@ -264,7 +285,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         continue;
       }
 
-      TextOutW(hdc, TextPosX, TextPosY + (i * TextMetric.tmHeight),
+      TextOutW(deviceContext, TextPosX, TextPosY + (i * TextMetric.tmHeight),
                str.value().c_str(), str.value().length());
     }
 
@@ -282,13 +303,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
           break;
         }
 
-        GetFontSize(hWnd, Text[i], &CharHeight, &CharWidth);
+        GetFontSize(hWnd, deviceContext, Text[i], &CharHeight, &CharWidth);
         CaretPosXByPixel += CharWidth;
       }
 
-      SetCaretPos(CaretPosXByPixel, TextMetric.tmHeight * CaretPosYByChar);
+      SetCaretPos(CaretPosXByPixel + TextPosX, TextMetric.tmHeight * CaretPosYByChar + TextPosY);
       ShowCaret(hWnd);
     }
+
+    UpdateScrollRange(hWnd, deviceContext);
 
     EndPaint(hWnd, &ps);
   } break;
@@ -324,17 +347,49 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
   return (INT_PTR)FALSE;
 }
 
-void GetFontSize(HWND hWnd, WCHAR character, int *height, int *width) {
-  HDC Hdc = GetDC(hWnd);
-
+void GetFontSize(HWND hWnd, HDC deviceContext, WCHAR character, int *height, int *width) {
   TEXTMETRICW TextMetric;
   ABC Abc;
 
-  GetCharABCWidths(Hdc, (UINT)character, (UINT)character, &Abc);
-  GetTextMetrics(Hdc, &TextMetric);
+  GetCharABCWidths(deviceContext, (UINT)character, (UINT)character, &Abc);
+  GetTextMetrics(deviceContext, &TextMetric);
 
   *height = TextMetric.tmHeight;
   *width = Abc.abcA + Abc.abcB + Abc.abcC;
+}
+
+void UpdateScrollRange(HWND hWnd, HDC deviceContext) {
+  std::wstring LongestLine = TextBoard.getLongestLine();
+
+  size_t TextHeightByChar = TextBoard.getMaxHeight();
+  size_t TextWidthByPixel = 0;
+
+  RECT rect;
+
+  GetWindowRect(hWnd, &rect);
+
+  size_t WindowHeight = rect.bottom - rect.top;
+  size_t WindowWidth = rect.right - rect.left;
+
+  if (TextHeightByChar * FONT_SIZE >= WindowHeight) {
+    SetScrollRange(hWnd, SB_HORZ, 0, 0, TRUE);
+  } else {
+    SetScrollRange(hWnd, SB_HORZ, 0,
+                   TextHeightByChar * FONT_SIZE - WindowHeight, TRUE);
+  }
+
+  int FontHeight, FontWidth;
+
+  for (auto iter = LongestLine.begin(); iter < LongestLine.end(); ++iter) {
+    GetFontSize(hWnd, deviceContext, *iter, &FontHeight, &FontWidth);
+    TextWidthByPixel += FontWidth;
+  }
+
+  if (TextWidthByPixel >= WindowWidth) {
+    SetScrollRange(hWnd, SB_VERT, 0, 0, TRUE);
+  } else {
+    SetScrollRange(hWnd, SB_VERT, 0, TextWidthByPixel - WindowWidth, TRUE);
+  }
 }
 
 BOOL TryOpen() {
@@ -355,6 +410,8 @@ BOOL TryOpen() {
   }
 
   std::wifstream ReadStream(lpstrFile);
+
+  ReadStream.imbue(std::locale("kor"));
 
   if (!ReadStream.is_open()) {
     ReadStream.close();
@@ -389,13 +446,15 @@ BOOL TrySave() {
 
   std::wofstream WriteStream(lpstrFile);
 
+  WriteStream.imbue(std::locale("kor"));
+
   if (!WriteStream.is_open()) {
     WriteStream.close();
     return false;
   }
 
   for (auto it = TextBoard.begin(); it < TextBoard.end(); ++it) {
-    WriteStream << *it;
+    WriteStream << *it << std::endl;
   }
 
   WriteStream.close();

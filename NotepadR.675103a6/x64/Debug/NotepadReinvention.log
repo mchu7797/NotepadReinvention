@@ -1,8 +1,2 @@
-﻿  NotepadReinvention.cpp
-P:\NotepadReinvention\NotepadReinvention.cpp(154,78): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
-P:\NotepadReinvention\NotepadReinvention.cpp(168,78): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
-P:\NotepadReinvention\NotepadReinvention.cpp(200,78): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
-P:\NotepadReinvention\NotepadReinvention.cpp(232,76): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
-P:\NotepadReinvention\NotepadReinvention.cpp(244,21): warning C4244: 'argument': conversion from 'WPARAM' to 'UINT', possible loss of data
-P:\NotepadReinvention\NotepadReinvention.cpp(268,55): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-  NotepadReinvention.vcxproj -> P:\NotepadReinvention\x64\Debug\NotepadReinvention.exe
+﻿  TextManager.cpp
+  NotepadReinvention.vcxproj -> G:\Development\NotepadReinvention\x64\Debug\NotepadReinvention.exe

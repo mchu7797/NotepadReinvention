@@ -8,7 +8,7 @@ public:
   TextManager();
 
   std::optional<std::wstring> getText(int Row);
-  size_t getMaxWidth();
+  std::wstring getLongestLine();
   size_t getMaxHeight();
 
   std::vector<std::wstring>::iterator begin() { return TextBoard.begin(); }
@@ -16,9 +16,9 @@ public:
   size_t size() { return TextBoard.size(); }
 
   void appendString(std::wstring string) { TextBoard.push_back(string); }
-  void clear() { TextBoard.clear(); }
+  void clear();
 
-  void handleWrite(wchar_t *Character, int X, int Y);
+  void handleWrite(wchar_t Character, int X, int Y);
   void handleHitEnter(int X, int Y);
   void handleHitBackspace(int X, int Y);
   void handleHitTab(int X, int Y);

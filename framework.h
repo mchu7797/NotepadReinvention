@@ -16,6 +16,7 @@
 #include <sstream>
 #include <vector>
 #include <optional>
+#include <locale>
 // C RunTime Header Files
 #include <stdlib.h>
 #include <malloc.h>

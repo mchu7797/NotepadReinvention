@@ -20,18 +20,18 @@
       "artifacts": [
         {
           "location": {
-            "uri": "file:///p:/notepadreinvention/notepadreinvention.cpp"
+            "uri": "file:///g:/development/notepadreinvention/notepadreinvention.cpp"
           },
           "roles": [
             "analysisTarget"
           ],
           "hashes": {
-            "sha-256": "1fa693591d1319d0979d20dd5e3c328aa911008f5dd5c1538f0afbf2bd453180"
+            "sha-256": "f6ac4471f9b3606b305d5ccf06b22be9cdcc90f5bfdca6413b140926c761b63d"
           }
         },
         {
           "location": {
-            "uri": "file:///p:/notepadreinvention/notepadreinvention.h"
+            "uri": "file:///g:/development/notepadreinvention/notepadreinvention.h"
           },
           "hashes": {
             "sha-256": "245ff9031a96ef2ffade37bd506c2cf3e602747e29b80a41cb2be9f3c9691154"
@@ -39,7 +39,7 @@
         },
         {
           "location": {
-            "uri": "file:///p:/notepadreinvention/resource.h"
+            "uri": "file:///g:/development/notepadreinvention/resource.h"
           },
           "hashes": {
             "sha-256": "28572fba816357cdf154173fbcd9fa56dac90e15c3ffceb1c954a0dbbf280aef"
@@ -47,26 +47,26 @@
         },
         {
           "location": {
-            "uri": "file:///p:/notepadreinvention/textmanager.h"
+            "uri": "file:///g:/development/notepadreinvention/framework.h"
           },
           "hashes": {
-            "sha-256": "302006521bbb1cfbbad8d21b446abc947616c269805c2abb41b12d4af0b70990"
+            "sha-256": "b2f90fd969daf5d926c983d6d5f5fbc70ea645c4678aca273536f321963c1b4c"
           }
         },
         {
           "location": {
-            "uri": "file:///p:/notepadreinvention/framework.h"
-          },
-          "hashes": {
-            "sha-256": "5dc4907c29ba07d2587bb604ddf348e0ed49a92b7ad4545580cb06c9ead60313"
-          }
-        },
-        {
-          "location": {
-            "uri": "file:///p:/notepadreinvention/targetver.h"
+            "uri": "file:///g:/development/notepadreinvention/targetver.h"
           },
           "hashes": {
             "sha-256": "98488711a351764d005e8c3d3fd40aaed28396870a660c28abd81ac2a53d4b90"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///g:/development/notepadreinvention/textmanager.h"
+          },
+          "hashes": {
+            "sha-256": "391626326fcd0be142f7e2ce1fb099ac3e8f4a03dc985859a163d4adbac0ce80"
           }
         }
       ]
