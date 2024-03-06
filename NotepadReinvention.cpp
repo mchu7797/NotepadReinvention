@@ -22,8 +22,8 @@ TextManager TextBoard;
 long TextPosX = 0;
 long TextPosY = 0;
 
-long TextHeight = 0;
-long TextWidth = 0;
+int CurrentXPos;
+int CurrentYPos;
 
 int CaretPosXByChar = 0;
 int CaretPosYByChar = 0;
@@ -34,8 +34,9 @@ BOOL InitInstance(HINSTANCE, int);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 
-void GetFontSize(HWND hWnd, HDC deviceContext, WCHAR character, int *height, int *width);
-void UpdateScrollRange(HWND hWnd, HDC deviceContext);
+void GetFontSize(HWND hWnd, HDC deviceContext, WCHAR character, int *height,
+                 int *width);
+void UpdateScrollRange(HWND hWnd);
 BOOL TryOpen();
 BOOL TrySave();
 
@@ -107,6 +108,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
                          LPARAM lParam) {
+  SCROLLINFO ScrollInfo;
+
   switch (message) {
   case WM_CREATE:
     defaultFont = CreateFont(FONT_SIZE, 0, 0, 0, 0, 0, 0, 0, HANGEUL_CHARSET, 0,
@@ -114,19 +117,96 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     SendMessage(hWnd, WM_SETFONT, (WPARAM)defaultFont, TRUE);
     TextBoard = TextManager();
     break;
+  case WM_SIZE:
+    UpdateScrollRange(hWnd);
+    break;
   case WM_HSCROLL:
-    if (LOWORD(wParam) == SB_THUMBTRACK) {
-      TextPosX = -HIWORD(wParam);
-      SetScrollPos(hWnd, SB_HORZ, HIWORD(wParam), TRUE);
-      InvalidateRect(hWnd, NULL, true);
+    ScrollInfo.cbSize = sizeof(ScrollInfo);
+    ScrollInfo.fMask = SIF_ALL;
+
+    GetScrollInfo(hWnd, SB_HORZ, &ScrollInfo);
+    CurrentXPos = ScrollInfo.nPos;
+
+    switch (LOWORD(wParam)) {
+    case SB_TOP:
+      ScrollInfo.nPos = ScrollInfo.nMin;
+      break;
+    case SB_BOTTOM:
+      ScrollInfo.nPos = ScrollInfo.nMax;
+      break;
+    case SB_LINEUP:
+      --ScrollInfo.nPos;
+      break;
+    case SB_LINEDOWN:
+      ++ScrollInfo.nPos;
+      break;
+    case SB_PAGEDOWN:
+      ScrollInfo.nPos += ScrollInfo.nPage;
+      break;
+    case SB_PAGEUP:
+      ScrollInfo.nPos -= ScrollInfo.nPage;
+      break;
+    case SB_THUMBTRACK:
+      ScrollInfo.nPos = HIWORD(wParam);
+      break;
+    default:
+      break;
     }
+
+    ScrollInfo.fMask = SIF_POS;
+    SetScrollInfo(hWnd, SB_HORZ, &ScrollInfo, true);
+    GetScrollInfo(hWnd, SB_HORZ, &ScrollInfo);
+
+    if (ScrollInfo.nPos != TextPosX) {
+      ScrollWindow(hWnd, 15 * (CurrentXPos - ScrollInfo.nPos), 0, NULL, NULL);
+      TextPosX = -ScrollInfo.nPos;
+      InvalidateRect(hWnd, nullptr, true);
+    }
+
     break;
   case WM_VSCROLL:
-    if (LOWORD(wParam) == SB_THUMBTRACK) {
-      TextPosY = -HIWORD(wParam);
-      SetScrollPos(hWnd, SB_VERT, HIWORD(wParam), TRUE);
-      InvalidateRect(hWnd, NULL, true);
+    ScrollInfo.cbSize = sizeof(ScrollInfo);
+    ScrollInfo.fMask = SIF_ALL;
+
+    GetScrollInfo(hWnd, SB_VERT, &ScrollInfo);
+    CurrentYPos = ScrollInfo.nPos;
+
+    switch (LOWORD(wParam)) {
+    case SB_TOP:
+      ScrollInfo.nPos = ScrollInfo.nMin;
+      break;
+    case SB_BOTTOM:
+      ScrollInfo.nPos = ScrollInfo.nMax;
+      break;
+    case SB_LINEUP:
+      --ScrollInfo.nPos;
+      break;
+    case SB_LINEDOWN:
+      ++ScrollInfo.nPos;
+      break;
+    case SB_PAGEDOWN:
+      ScrollInfo.nPos += ScrollInfo.nPage;
+      break;
+    case SB_PAGEUP:
+      ScrollInfo.nPos -= ScrollInfo.nPage;
+      break;
+    case SB_THUMBTRACK:
+      ScrollInfo.nPos = HIWORD(wParam);
+      break;
+    default:
+      break;
     }
+
+    ScrollInfo.fMask = SIF_POS;
+    SetScrollInfo(hWnd, SB_VERT, &ScrollInfo, true);
+    GetScrollInfo(hWnd, SB_VERT, &ScrollInfo);
+
+    if (ScrollInfo.nPos != TextPosY) {
+      ScrollWindow(hWnd, 15 * (CurrentYPos - ScrollInfo.nPos), 0, NULL, NULL);
+      TextPosY = -ScrollInfo.nPos;
+      InvalidateRect(hWnd, nullptr, true);
+    }
+
     break;
   case WM_COMMAND: {
     int wmId = LOWORD(wParam);
@@ -269,6 +349,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     default:
       break;
     }
+    UpdateScrollRange(hWnd);
     break;
   case WM_PAINT: {
     PAINTSTRUCT ps;
@@ -307,11 +388,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         CaretPosXByPixel += CharWidth;
       }
 
-      SetCaretPos(CaretPosXByPixel + TextPosX, TextMetric.tmHeight * CaretPosYByChar + TextPosY);
+      SetCaretPos(CaretPosXByPixel + TextPosX,
+                  TextMetric.tmHeight * CaretPosYByChar + TextPosY);
       ShowCaret(hWnd);
     }
-
-    UpdateScrollRange(hWnd, deviceContext);
 
     EndPaint(hWnd, &ps);
   } break;
@@ -347,7 +427,70 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
   return (INT_PTR)FALSE;
 }
 
-void GetFontSize(HWND hWnd, HDC deviceContext, WCHAR character, int *height, int *width) {
+void UpdateScrollRange(HWND hWnd) {
+  HDC DeviceContext;
+  SCROLLINFO ScrollInfo;
+  RECT WindowRect;
+  int TextBoardMaxWidth = 0;
+  int WindowHeight, WindowWidth;
+
+  DeviceContext = GetDC(hWnd);
+
+  GetWindowRect(hWnd, &WindowRect);
+
+  WindowHeight = WindowRect.bottom - WindowRect.top;
+  WindowWidth = WindowRect.right - WindowRect.left;
+
+  // 세로 스크롤바
+  ScrollInfo.cbSize = sizeof(ScrollInfo);
+  ScrollInfo.fMask = SIF_RANGE | SIF_PAGE;
+  ScrollInfo.nMin = 0;
+  ScrollInfo.nMax = TextBoard.size() * FONT_SIZE - WindowHeight;
+
+  if (ScrollInfo.nMax < 0) {
+    ScrollInfo.nMax = 0;
+  }
+
+  if (ScrollInfo.nMax != 0) {
+    ScrollInfo.nPage = ScrollInfo.nMax / TextBoard.size();
+  } else {
+    ScrollInfo.nPage = 0;
+  }
+  
+  SetScrollInfo(hWnd, SB_VERT, &ScrollInfo, true);
+
+  // 가로 최대 너비 구하기
+  std::wstring LongestString = TextBoard.getLongestLine();
+  int FontHeight, FontWidth;
+
+  for (auto it = LongestString.begin(); it < LongestString.end(); ++it) {
+    GetFontSize(hWnd, DeviceContext, *it, &FontHeight, &FontWidth);
+    TextBoardMaxWidth += FontWidth;
+  }
+
+  // 가로 스크롤바
+  ScrollInfo.cbSize = sizeof(ScrollInfo);
+  ScrollInfo.fMask = SIF_RANGE | SIF_PAGE;
+  ScrollInfo.nMin = 0;
+  ScrollInfo.nMax = TextBoardMaxWidth - WindowWidth;
+
+  if (ScrollInfo.nMax < 0) {
+    ScrollInfo.nMax = 0;
+  }
+
+  if (ScrollInfo.nMax != 0) {
+    ScrollInfo.nPage = ScrollInfo.nMax / LongestString.length();
+  } else {
+    ScrollInfo.nPage = 0;
+  }
+
+  SetScrollInfo(hWnd, SB_HORZ, &ScrollInfo, true);
+
+  ReleaseDC(hWnd, DeviceContext);
+}
+
+void GetFontSize(HWND hWnd, HDC deviceContext, WCHAR character, int *height,
+                 int *width) {
   TEXTMETRICW TextMetric;
   ABC Abc;
 
@@ -356,40 +499,6 @@ void GetFontSize(HWND hWnd, HDC deviceContext, WCHAR character, int *height, int
 
   *height = TextMetric.tmHeight;
   *width = Abc.abcA + Abc.abcB + Abc.abcC;
-}
-
-void UpdateScrollRange(HWND hWnd, HDC deviceContext) {
-  std::wstring LongestLine = TextBoard.getLongestLine();
-
-  size_t TextHeightByChar = TextBoard.getMaxHeight();
-  size_t TextWidthByPixel = 0;
-
-  RECT rect;
-
-  GetWindowRect(hWnd, &rect);
-
-  size_t WindowHeight = rect.bottom - rect.top;
-  size_t WindowWidth = rect.right - rect.left;
-
-  if (TextHeightByChar * FONT_SIZE >= WindowHeight) {
-    SetScrollRange(hWnd, SB_HORZ, 0, 0, TRUE);
-  } else {
-    SetScrollRange(hWnd, SB_HORZ, 0,
-                   TextHeightByChar * FONT_SIZE - WindowHeight, TRUE);
-  }
-
-  int FontHeight, FontWidth;
-
-  for (auto iter = LongestLine.begin(); iter < LongestLine.end(); ++iter) {
-    GetFontSize(hWnd, deviceContext, *iter, &FontHeight, &FontWidth);
-    TextWidthByPixel += FontWidth;
-  }
-
-  if (TextWidthByPixel >= WindowWidth) {
-    SetScrollRange(hWnd, SB_VERT, 0, 0, TRUE);
-  } else {
-    SetScrollRange(hWnd, SB_VERT, 0, TextWidthByPixel - WindowWidth, TRUE);
-  }
 }
 
 BOOL TryOpen() {
