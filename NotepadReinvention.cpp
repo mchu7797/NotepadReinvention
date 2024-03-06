@@ -431,12 +431,14 @@ void UpdateScrollRange(HWND hWnd) {
   HDC DeviceContext;
   SCROLLINFO ScrollInfo;
   RECT WindowRect;
+  TEXTMETRIC TextMetric;
   int TextBoardMaxWidth = 0;
   int WindowHeight, WindowWidth;
 
   DeviceContext = GetDC(hWnd);
+  GetTextMetrics(DeviceContext, &TextMetric);
 
-  GetWindowRect(hWnd, &WindowRect);
+  GetClientRect(hWnd, &WindowRect);
 
   WindowHeight = WindowRect.bottom - WindowRect.top;
   WindowWidth = WindowRect.right - WindowRect.left;
