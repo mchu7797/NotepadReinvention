@@ -238,6 +238,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     }
   } break;
   case WM_LBUTTONDOWN:
+    if (TextBoard.getText(0).has_value()) {
+      if (TextBoard.getText(0).value().length() == 0) {
+        break;
+      }
+    } else {
+      break;
+    }
+
     UpdateCaret(hWnd, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
     InvalidateRect(hWnd, nullptr, true);
     UpdateWindow(hWnd);
@@ -448,7 +456,7 @@ void UpdateCaret(HWND hWnd, int MousePosX, int MousePosY) {
   GetTextMetrics(DeviceContext, &TextMetric);
 
   for (int i = 0; i < TextBoard.size(); ++i) {
-    if (MousePosY < i * TextMetric.tmHeight - TextPosY) {
+    if (MousePosY < i * TextMetric.tmHeight + TextPosY) {
       --newIndexY;
       break;
     }
