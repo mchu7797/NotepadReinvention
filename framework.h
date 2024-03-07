@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <commdlg.h>
 #include <fileapi.h>
+#include <windowsx.h>
 // CPP RunTime Header Files
 #include <fstream>
 #include <string>

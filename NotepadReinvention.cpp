@@ -39,6 +39,7 @@ void GetFontSize(HWND hWnd, HDC deviceContext, WCHAR character, int *height,
 void UpdateScrollRange(HWND hWnd);
 BOOL TryOpen();
 BOOL TrySave();
+void UpdateCaret(HWND hWnd, int MousePosX, int MousePosY);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                       _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine,
@@ -236,6 +237,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       return DefWindowProc(hWnd, message, wParam, lParam);
     }
   } break;
+  case WM_LBUTTONDOWN:
+    UpdateCaret(hWnd, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+    InvalidateRect(hWnd, nullptr, true);
+    UpdateWindow(hWnd);
+    break;
   case WM_CHAR:
     if (wParam < 32 || wParam == 127) {
       break;
@@ -427,6 +433,51 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
   return (INT_PTR)FALSE;
 }
 
+void UpdateCaret(HWND hWnd, int MousePosX, int MousePosY) {
+  HDC DeviceContext;
+  TEXTMETRIC TextMetric;
+  int newIndexX = 0;
+  int newIndexY = 0;
+  int tempPosX = 0;
+
+  int textHeight = 0;
+  int textWidth = 0;
+
+  DeviceContext = GetDC(hWnd);
+
+  GetTextMetrics(DeviceContext, &TextMetric);
+
+  for (int i = 0; i < TextBoard.size(); ++i) {
+    if (MousePosY < i * TextMetric.tmHeight - TextPosY) {
+      --newIndexY;
+      break;
+    }
+
+    ++newIndexY;
+  }
+
+  newIndexY =
+      (newIndexY >= TextBoard.size() ? TextBoard.size() - 1 : newIndexY);
+  std::wstring CurrentLine = TextBoard.getText(newIndexY).value();
+
+  for (int i = 0; i < CurrentLine.length(); ++i) {
+    GetFontSize(hWnd, DeviceContext, CurrentLine[i], &textHeight, &textWidth);
+
+    if (MousePosX < tempPosX + textWidth + TextPosX) {
+      --newIndexX;
+      break;
+    }
+
+    tempPosX += textWidth;
+    ++newIndexX;
+  }
+
+  CaretPosXByChar = newIndexX;
+  CaretPosYByChar = newIndexY;
+
+  ReleaseDC(hWnd, DeviceContext);
+}
+
 void UpdateScrollRange(HWND hWnd) {
   HDC DeviceContext;
   SCROLLINFO ScrollInfo;
@@ -447,7 +498,7 @@ void UpdateScrollRange(HWND hWnd) {
   ScrollInfo.cbSize = sizeof(ScrollInfo);
   ScrollInfo.fMask = SIF_RANGE | SIF_PAGE;
   ScrollInfo.nMin = 0;
-  ScrollInfo.nMax = TextBoard.size() * FONT_SIZE - WindowHeight;
+  ScrollInfo.nMax = TextBoard.size() * TextMetric.tmHeight - WindowHeight;
 
   if (ScrollInfo.nMax < 0) {
     ScrollInfo.nMax = 0;
@@ -458,7 +509,7 @@ void UpdateScrollRange(HWND hWnd) {
   } else {
     ScrollInfo.nPage = 0;
   }
-  
+
   SetScrollInfo(hWnd, SB_VERT, &ScrollInfo, true);
 
   // 가로 최대 너비 구하기
