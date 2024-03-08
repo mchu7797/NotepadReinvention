@@ -137,7 +137,7 @@ void TextManager::handleHitDelete(int X, int Y) {
     return;
   }
 
-  if (X > TextBoard[Y].length()) {
+  if (X >= TextBoard[Y].length()) {
     if (Y + 1 > TextBoard.size()) {
       return;
     }

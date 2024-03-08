@@ -220,8 +220,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       DestroyWindow(hWnd);
       break;
     case IDM_FILE_OPEN:
-      TextBoard.clear();
-
       if (!TryOpen()) {
         MessageBox(mainWindow, L"파일을 열 수 없습니다!", L"오류", MB_OK);
       }
@@ -587,6 +585,8 @@ BOOL TryOpen() {
     ReadStream.close();
     return false;
   }
+
+  TextBoard.clear();
 
   std::wstring Line;
 
