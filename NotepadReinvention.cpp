@@ -28,6 +28,9 @@ int CurrentYPos;
 int CaretPosXByChar = 0;
 int CaretPosYByChar = 0;
 
+int TempCaretPosXChar;
+int TempCaretPosYChar;
+
 // Windows API 함수들
 ATOM MyRegisterClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE, int);
@@ -161,7 +164,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     if (ScrollInfo.nPos != TextPosX) {
       ScrollWindow(hWnd, 15 * (CurrentXPos - ScrollInfo.nPos), 0, NULL, NULL);
       TextPosX = -ScrollInfo.nPos;
-      InvalidateRect(hWnd, nullptr, true);
+      InvalidateRect(hWnd, nullptr, false);
     }
 
     break;
@@ -205,7 +208,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     if (ScrollInfo.nPos != TextPosY) {
       ScrollWindow(hWnd, 15 * (CurrentYPos - ScrollInfo.nPos), 0, NULL, NULL);
       TextPosY = -ScrollInfo.nPos;
-      InvalidateRect(hWnd, nullptr, true);
+      InvalidateRect(hWnd, nullptr, false);
     }
 
     break;
@@ -224,7 +227,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         MessageBox(mainWindow, L"파일을 열 수 없습니다!", L"오류", MB_OK);
       }
 
-      InvalidateRect(hWnd, NULL, true);
+      InvalidateRect(hWnd, nullptr, false);
       break;
     case IDM_FILE_SAVE:
       if (!TrySave()) {
@@ -245,7 +248,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     }
 
     UpdateCaret(hWnd, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-    InvalidateRect(hWnd, nullptr, true);
+    InvalidateRect(hWnd, nullptr, false);
     UpdateWindow(hWnd);
     break;
   case WM_CHAR:
@@ -255,7 +258,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
 
     TextBoard.handleWrite((wchar_t)wParam, CaretPosXByChar, CaretPosYByChar);
     ++CaretPosXByChar;
-    InvalidateRect(hWnd, NULL, true);
+    InvalidateRect(hWnd, nullptr, false);
     break;
   case WM_KEYDOWN:
     switch (wParam) {
@@ -271,7 +274,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         }
       }
 
-      InvalidateRect(hWnd, nullptr, true);
+      InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_DOWN:
       if (CaretPosYByChar < TextBoard.size() - 1) {
@@ -285,14 +288,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         }
       }
 
-      InvalidateRect(hWnd, nullptr, true);
+      InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_LEFT:
       if (CaretPosXByChar > 0) {
         --CaretPosXByChar;
       }
 
-      InvalidateRect(hWnd, nullptr, true);
+      InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_RIGHT:
       if (TextBoard.getText(CaretPosYByChar).has_value()) {
@@ -302,10 +305,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         }
       }
 
-      InvalidateRect(hWnd, nullptr, true);
+      InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_BACK:
-      TextBoard.handleHitBackspace(CaretPosXByChar, CaretPosYByChar);
+      TempCaretPosXChar = CaretPosXByChar;
+      TempCaretPosYChar = CaretPosYByChar;
 
       if (CaretPosXByChar > 0) {
         --CaretPosXByChar;
@@ -321,7 +325,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         // Do nothing
       }
 
-      InvalidateRect(hWnd, NULL, true);
+      TextBoard.handleHitBackspace(TempCaretPosXChar, TempCaretPosYChar);
+
+      InvalidateRect(hWnd, nullptr, false);
 
       break;
     case VK_TAB:
@@ -329,7 +335,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
 
       CaretPosXByChar += 8;
 
-      InvalidateRect(hWnd, NULL, true);
+      InvalidateRect(hWnd, nullptr, false);
 
       break;
     case VK_RETURN:
@@ -338,22 +344,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       CaretPosXByChar = 0;
       ++CaretPosYByChar;
 
-      InvalidateRect(hWnd, NULL, true);
+      InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_HOME:
       CaretPosXByChar = 0;
-      InvalidateRect(hWnd, NULL, true);
+      InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_END:
       if (TextBoard.getText(CaretPosYByChar).has_value()) {
         CaretPosXByChar = TextBoard.getText(CaretPosYByChar).value().length();
       }
-      InvalidateRect(hWnd, NULL, true);
+      InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_DELETE:
       TextBoard.handleHitDelete(CaretPosXByChar, CaretPosYByChar);
 
-      InvalidateRect(hWnd, NULL, true);
+      InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_INSERT:
       TextBoard.handleHitInsert();
@@ -365,10 +371,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     break;
   case WM_PAINT: {
     PAINTSTRUCT ps;
-    TEXTMETRICW TextMetric;
-    HDC deviceContext = BeginPaint(hWnd, &ps);
+    static HDC hdc, MemDC, tmpDC;
+    static HBITMAP BackBit, oldBackBit;
+    static RECT bufferRT;
+    hdc = BeginPaint(hWnd, &ps);
 
-    GetTextMetrics(deviceContext, &TextMetric);
+    GetClientRect(hWnd, &bufferRT);
+    MemDC = CreateCompatibleDC(hdc);
+    BackBit = CreateCompatibleBitmap(hdc, bufferRT.right, bufferRT.bottom);
+    oldBackBit = (HBITMAP)SelectObject(MemDC, BackBit);
+    PatBlt(MemDC, 0, 0, bufferRT.right, bufferRT.bottom, WHITENESS);
+    tmpDC = hdc;
+    hdc = MemDC;
+    MemDC = tmpDC;
+
+    TEXTMETRICW TextMetric;
+
+    GetTextMetrics(hdc, &TextMetric);
 
     // 글자 그리기
     for (int i = 0; i < TextBoard.size(); ++i) {
@@ -378,7 +397,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         continue;
       }
 
-      TextOutW(deviceContext, TextPosX, TextPosY + (i * TextMetric.tmHeight),
+      TextOutW(hdc, TextPosX, TextPosY + (i * TextMetric.tmHeight),
                str.value().c_str(), str.value().length());
     }
 
@@ -396,7 +415,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
           break;
         }
 
-        GetFontSize(hWnd, deviceContext, Text[i], &CharHeight, &CharWidth);
+        GetFontSize(hWnd, hdc, Text[i], &CharHeight, &CharWidth);
         CaretPosXByPixel += CharWidth;
       }
 
@@ -405,6 +424,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       ShowCaret(hWnd);
     }
 
+    /** End of double buffering **/
+    tmpDC = hdc;
+    hdc = MemDC;
+    MemDC = tmpDC;
+    GetClientRect(hWnd, &bufferRT);
+    BitBlt(hdc, 0, 0, bufferRT.right, bufferRT.bottom, MemDC, 0, 0, SRCCOPY);
+    SelectObject(MemDC, oldBackBit);
+    DeleteObject(BackBit);
+    DeleteDC(MemDC);
     EndPaint(hWnd, &ps);
   } break;
   case WM_SETFOCUS:
@@ -517,6 +545,10 @@ void UpdateScrollRange(HWND hWnd) {
   }
 
   SetScrollInfo(hWnd, SB_VERT, &ScrollInfo, true);
+  
+  if (ScrollInfo.nMax == 0 && ScrollInfo.nPage == 0) {
+    TextPosY = 0;
+  }
 
   // 가로 최대 너비 구하기
   std::wstring LongestString = TextBoard.getLongestLine();
@@ -544,6 +576,10 @@ void UpdateScrollRange(HWND hWnd) {
   }
 
   SetScrollInfo(hWnd, SB_HORZ, &ScrollInfo, true);
+
+  if (ScrollInfo.nMax == 0 && ScrollInfo.nPage == 0) {
+    TextPosX = 0;
+  }
 
   ReleaseDC(hWnd, DeviceContext);
 }
