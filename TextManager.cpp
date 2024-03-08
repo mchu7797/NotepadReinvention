@@ -7,8 +7,7 @@
 TextManager::TextManager() {
   TextBoard = std::vector<std::wstring>();
 
-  TextBoard.push_back(L"Hello, World!");
-  TextBoard.push_back(L"한글한글한글");
+  TextBoard.push_back(L"");
 
   IsOverrideMode = false;
 }
