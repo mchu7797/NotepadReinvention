@@ -31,7 +31,6 @@ int CaretPosYByChar = 0;
 int TempCaretPosXChar;
 int TempCaretPosYChar;
 
-// Windows API ÇÔ¼öµé
 ATOM MyRegisterClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE, int);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -371,21 +370,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     break;
   case WM_PAINT: {
     PAINTSTRUCT ps;
-    static HDC hdc, MemDC, tmpDC;
-    static HBITMAP BackBit, oldBackBit;
-    static RECT bufferRT;
-    hdc = BeginPaint(hWnd, &ps);
-
-    GetClientRect(hWnd, &bufferRT);
-    MemDC = CreateCompatibleDC(hdc);
-    BackBit = CreateCompatibleBitmap(hdc, bufferRT.right, bufferRT.bottom);
-    oldBackBit = (HBITMAP)SelectObject(MemDC, BackBit);
-    PatBlt(MemDC, 0, 0, bufferRT.right, bufferRT.bottom, WHITENESS);
-    tmpDC = hdc;
-    hdc = MemDC;
-    MemDC = tmpDC;
-
+    HDC hdc = BeginPaint(hWnd, &ps);
+    HDC hdcBuffer = CreateCompatibleDC(hdc);
+    HBITMAP hbmBuffer =
+        CreateCompatibleBitmap(hdc, ps.rcPaint.right, ps.rcPaint.bottom);
+    HBITMAP hbmOldBuffer = (HBITMAP)SelectObject(hdcBuffer, hbmBuffer);
     TEXTMETRICW TextMetric;
+
+    PatBlt(hdcBuffer, 0, 0, ps.rcPaint.right, ps.rcPaint.bottom, WHITENESS);
 
     GetTextMetrics(hdc, &TextMetric);
 
@@ -397,7 +389,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         continue;
       }
 
-      TextOutW(hdc, TextPosX, TextPosY + (i * TextMetric.tmHeight),
+      TextOutW(hdcBuffer, TextPosX, TextPosY + (i * TextMetric.tmHeight),
                str.value().c_str(), str.value().length());
     }
 
@@ -424,15 +416,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       ShowCaret(hWnd);
     }
 
-    /** End of double buffering **/
-    tmpDC = hdc;
-    hdc = MemDC;
-    MemDC = tmpDC;
-    GetClientRect(hWnd, &bufferRT);
-    BitBlt(hdc, 0, 0, bufferRT.right, bufferRT.bottom, MemDC, 0, 0, SRCCOPY);
-    SelectObject(MemDC, oldBackBit);
-    DeleteObject(BackBit);
-    DeleteDC(MemDC);
+    BitBlt(hdc, 0, 0, ps.rcPaint.right, ps.rcPaint.bottom, hdcBuffer, 0, 0,
+           SRCCOPY);
+
+    SelectObject(hdcBuffer, hbmOldBuffer);
+    DeleteObject(hbmBuffer);
+    DeleteDC(hdcBuffer);
+
     EndPaint(hWnd, &ps);
   } break;
   case WM_SETFOCUS:
