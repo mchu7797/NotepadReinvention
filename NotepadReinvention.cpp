@@ -38,10 +38,11 @@ INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 
 void GetFontSize(HWND hWnd, HDC deviceContext, WCHAR character, int *height,
                  int *width);
+void UpdateCaret(HWND hWnd, int MousePosX, int MousePosY);
 void UpdateScrollRange(HWND hWnd);
+void GetWindowSize(HWND hWnd, int *WindowHeight, int *WindowWidth);
 BOOL TryOpen();
 BOOL TrySave();
-void UpdateCaret(HWND hWnd, int MousePosX, int MousePosY);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                       _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine,
@@ -111,7 +112,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
                          LPARAM lParam) {
+  HDC hdc;
   SCROLLINFO ScrollInfo;
+  TEXTMETRIC TextMetric;
+  POINT CaretPos;
+  int WindowHeight, WindowWidth;
+  int CharHeight, CharWidth;
 
   switch (message) {
   case WM_CREATE:
@@ -257,6 +263,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
 
     TextBoard.handleWrite((wchar_t)wParam, CaretPosXByChar, CaretPosYByChar);
     ++CaretPosXByChar;
+
+    GetCaretPos(&CaretPos);
+    GetWindowSize(hWnd, nullptr, &WindowWidth);
+
+    hdc = GetDC(hWnd);
+    GetFontSize(hWnd, hdc, wParam, &CharHeight, &CharWidth);
+    ReleaseDC(hWnd, hdc);
+
+    if (CaretPos.x >= WindowWidth - 20) {
+      TextPosX -= CharWidth;
+      UpdateScrollRange(hWnd);
+
+      memset(&ScrollInfo, 0, sizeof(ScrollInfo));
+      ScrollInfo.cbSize = sizeof(ScrollInfo);
+      ScrollInfo.fMask = SIF_ALL;
+
+      GetScrollInfo(hWnd, SB_HORZ, &ScrollInfo);
+      ScrollInfo.nPos = ScrollInfo.nMax;
+      SetScrollInfo(hWnd, SB_HORZ, &ScrollInfo, true);
+    }
+
     InvalidateRect(hWnd, nullptr, false);
     break;
   case WM_KEYDOWN:
@@ -273,6 +300,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         }
       }
 
+      GetCaretPos(&CaretPos);
+      GetWindowSize(hWnd, &WindowHeight, nullptr);
+
+      hdc = GetDC(hWnd);
+      GetTextMetrics(hdc, &TextMetric);
+      ReleaseDC(hWnd, hdc);
+
+      if (CaretPos.y < 20 && TextPosY < 0) {
+        TextPosY += TextMetric.tmHeight;
+        UpdateScrollRange(hWnd);
+
+        memset(&ScrollInfo, 0, sizeof(ScrollInfo));
+        ScrollInfo.cbSize = sizeof(ScrollInfo);
+        ScrollInfo.fMask = SIF_ALL;
+
+        GetScrollInfo(hWnd, SB_VERT, &ScrollInfo);
+        ScrollInfo.nPos -= TextMetric.tmHeight + TextMetric.tmExternalLeading +
+                           TextMetric.tmInternalLeading;
+        SetScrollInfo(hWnd, SB_VERT, &ScrollInfo, true);
+      }
+
       InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_DOWN:
@@ -285,6 +333,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
             TextBoard.getText(CaretPosYByChar).value().length() - 1) {
           CaretPosXByChar = TextBoard.getText(CaretPosYByChar).value().length();
         }
+      }
+
+      GetCaretPos(&CaretPos);
+      GetWindowSize(hWnd, &WindowHeight, nullptr);
+
+      hdc = GetDC(hWnd);
+      GetTextMetrics(hdc, &TextMetric);
+      ReleaseDC(hWnd, hdc);
+
+      if (CaretPos.y > WindowHeight - 20 &&
+          CaretPosYByChar < TextBoard.size()) {
+        TextPosY -= TextMetric.tmHeight;
+        UpdateScrollRange(hWnd);
+
+        memset(&ScrollInfo, 0, sizeof(ScrollInfo));
+        ScrollInfo.cbSize = sizeof(ScrollInfo);
+        ScrollInfo.fMask = SIF_ALL;
+
+        GetScrollInfo(hWnd, SB_VERT, &ScrollInfo);
+        ScrollInfo.nPos += TextMetric.tmHeight + TextMetric.tmExternalLeading +
+                           TextMetric.tmInternalLeading;
+        SetScrollInfo(hWnd, SB_VERT, &ScrollInfo, true);
       }
 
       InvalidateRect(hWnd, nullptr, false);
@@ -326,6 +396,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
 
       TextBoard.handleHitBackspace(TempCaretPosXChar, TempCaretPosYChar);
 
+      GetCaretPos(&CaretPos);
+      GetWindowSize(hWnd, nullptr, &WindowWidth);
+
+      hdc = GetDC(hWnd);
+      GetFontSize(hWnd, hdc,
+                  TextBoard.getText(CaretPosYByChar).value()[CaretPosXByChar],
+                  &CharHeight, &CharWidth);
+      ReleaseDC(hWnd, hdc);
+
+      if (CaretPos.x >= 20 && TextPosX < 0) {
+        TextPosX += CharWidth;
+        UpdateScrollRange(hWnd);
+
+        memset(&ScrollInfo, 0, sizeof(ScrollInfo));
+        ScrollInfo.cbSize = sizeof(ScrollInfo);
+        ScrollInfo.fMask = SIF_ALL;
+
+        GetScrollInfo(hWnd, SB_HORZ, &ScrollInfo);
+        ScrollInfo.nPos = ScrollInfo.nMax;
+        SetScrollInfo(hWnd, SB_HORZ, &ScrollInfo, true);
+      }
+
       InvalidateRect(hWnd, nullptr, false);
 
       break;
@@ -342,6 +434,40 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
 
       CaretPosXByChar = 0;
       ++CaretPosYByChar;
+
+      GetCaretPos(&CaretPos);
+      GetWindowSize(hWnd, &WindowHeight, nullptr);
+
+      hdc = GetDC(hWnd);
+      GetTextMetrics(hdc, &TextMetric);
+      ReleaseDC(hWnd, hdc);
+
+      if (CaretPos.y >= WindowHeight - 20) {
+        TextPosY -= TextMetric.tmHeight + TextMetric.tmExternalLeading +
+                    TextMetric.tmInternalLeading;
+        UpdateScrollRange(hWnd);
+
+        memset(&ScrollInfo, 0, sizeof(ScrollInfo));
+        ScrollInfo.cbSize = sizeof(ScrollInfo);
+        ScrollInfo.fMask = SIF_ALL;
+
+        GetScrollInfo(hWnd, SB_VERT, &ScrollInfo);
+        ScrollInfo.nPos = ScrollInfo.nMax;
+        SetScrollInfo(hWnd, SB_VERT, &ScrollInfo, true);
+      }
+
+      if (TextPosX < 0) {
+        TextPosX = 0;
+        UpdateScrollRange(hWnd);
+
+        memset(&ScrollInfo, 0, sizeof(ScrollInfo));
+        ScrollInfo.cbSize = sizeof(ScrollInfo);
+        ScrollInfo.fMask = SIF_ALL;
+
+        GetScrollInfo(hWnd, SB_HORZ, &ScrollInfo);
+        ScrollInfo.nPos = ScrollInfo.nMin;
+        SetScrollInfo(hWnd, SB_HORZ, &ScrollInfo, true);
+      }
 
       InvalidateRect(hWnd, nullptr, false);
       break;
@@ -369,8 +495,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
     UpdateScrollRange(hWnd);
     break;
   case WM_PAINT: {
+    /* 가상 디스플레이 생성 */
     PAINTSTRUCT ps;
-    HDC hdc = BeginPaint(hWnd, &ps);
+    hdc = BeginPaint(hWnd, &ps);
     HDC hdcBuffer = CreateCompatibleDC(hdc);
     HBITMAP hbmBuffer =
         CreateCompatibleBitmap(hdc, ps.rcPaint.right, ps.rcPaint.bottom);
@@ -379,9 +506,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
 
     PatBlt(hdcBuffer, 0, 0, ps.rcPaint.right, ps.rcPaint.bottom, WHITENESS);
 
-    GetTextMetrics(hdc, &TextMetric);
+    GetTextMetrics(hdcBuffer, &TextMetric);
 
-    // 글자 그리기
+    /* 글자 그리기 */
     for (int i = 0; i < TextBoard.size(); ++i) {
       std::optional<std::wstring> str = TextBoard.getText(i);
 
@@ -393,7 +520,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
                str.value().c_str(), str.value().length());
     }
 
-    // 커서 배치하기
+    /* 커서 배치하기 */
     if (!TextBoard.getText(CaretPosYByChar).has_value()) {
       SetCaretPos(0, TextMetric.tmHeight * CaretPosYByChar);
       ShowCaret(hWnd);
@@ -416,9 +543,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
       ShowCaret(hWnd);
     }
 
+    /* 실제 디스플레이로 복사 */
     BitBlt(hdc, 0, 0, ps.rcPaint.right, ps.rcPaint.bottom, hdcBuffer, 0, 0,
            SRCCOPY);
-
     SelectObject(hdcBuffer, hbmOldBuffer);
     DeleteObject(hbmBuffer);
     DeleteDC(hdcBuffer);
@@ -502,6 +629,19 @@ void UpdateCaret(HWND hWnd, int MousePosX, int MousePosY) {
   ReleaseDC(hWnd, DeviceContext);
 }
 
+void GetWindowSize(HWND hWnd, int *height, int *width) {
+  RECT WindowRect;
+  GetClientRect(hWnd, &WindowRect);
+
+  if (height != nullptr) {
+    *height = WindowRect.bottom - WindowRect.top;
+  }
+
+  if (width != nullptr) {
+    *width = WindowRect.right - WindowRect.left;
+  }
+}
+
 void UpdateScrollRange(HWND hWnd) {
   HDC DeviceContext;
   SCROLLINFO ScrollInfo;
@@ -535,7 +675,7 @@ void UpdateScrollRange(HWND hWnd) {
   }
 
   SetScrollInfo(hWnd, SB_VERT, &ScrollInfo, true);
-  
+
   if (ScrollInfo.nMax == 0 && ScrollInfo.nPage == 0) {
     TextPosY = 0;
   }
