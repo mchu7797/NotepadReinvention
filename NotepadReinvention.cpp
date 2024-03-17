@@ -364,6 +364,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
         --CaretPosXByChar;
       }
 
+      GetCaretPos(&CaretPos);
+      GetWindowSize(hWnd, nullptr, &WindowWidth);
+
+      hdc = GetDC(hWnd);
+      GetFontSize(hWnd, hdc,
+                  TextBoard.getText(CaretPosYByChar).value()[CaretPosXByChar],
+                  &CharHeight, &CharWidth);
+      ReleaseDC(hWnd, hdc);
+
+      if (CaretPos.x <= 20 && TextPosX < 0) {
+        TextPosX += CharWidth;
+        UpdateScrollRange(hWnd);
+
+        memset(&ScrollInfo, 0, sizeof(ScrollInfo));
+        ScrollInfo.cbSize = sizeof(ScrollInfo);
+        ScrollInfo.fMask = SIF_ALL;
+
+        GetScrollInfo(hWnd, SB_HORZ, &ScrollInfo);
+        ScrollInfo.nPos = ScrollInfo.nMin;
+        SetScrollInfo(hWnd, SB_HORZ, &ScrollInfo, true);
+      }
+
       InvalidateRect(hWnd, nullptr, false);
       break;
     case VK_RIGHT:
@@ -372,6 +394,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam,
             TextBoard.getText(CaretPosYByChar).value().length()) {
           ++CaretPosXByChar;
         }
+      }
+
+      GetCaretPos(&CaretPos);
+      GetWindowSize(hWnd, nullptr, &WindowWidth);
+
+      hdc = GetDC(hWnd);
+      GetFontSize(hWnd, hdc,
+                  TextBoard.getText(CaretPosYByChar).value()[CaretPosXByChar],
+                  &CharHeight, &CharWidth);
+      ReleaseDC(hWnd, hdc);
+
+      if (CaretPos.x <= WindowWidth - 20 &&
+          CaretPosXByChar <
+              TextBoard.getText(CaretPosYByChar).value().length()) {
+        TextPosX -= CharWidth;
+        UpdateScrollRange(hWnd);
+
+        memset(&ScrollInfo, 0, sizeof(ScrollInfo));
+        ScrollInfo.cbSize = sizeof(ScrollInfo);
+        ScrollInfo.fMask = SIF_ALL;
+
+        GetScrollInfo(hWnd, SB_HORZ, &ScrollInfo);
+        ScrollInfo.nPos = ScrollInfo.nMax;
+        SetScrollInfo(hWnd, SB_HORZ, &ScrollInfo, true);
       }
 
       InvalidateRect(hWnd, nullptr, false);
